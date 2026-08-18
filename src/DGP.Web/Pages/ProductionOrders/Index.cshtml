@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "Production Orders";
+}
+
+<div class="page-header">
+    <h3>Production Orders</h3>
+    <button class="btn btn-primary">Create production order</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Production</th>
+                    <th>Order</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>PO-880</td>
+                    <td>SO-2048</td>
+                    <td>HN001</td>
+                    <td>8,000</td>
+                    <td><span class="badge-status success">Running</span></td>
+                </tr>
+                <tr>
+                    <td>PO-881</td>
+                    <td>SO-2050</td>
+                    <td>AS001</td>
+                    <td>5,500</td>
+                    <td><span class="badge-status warning">Queued</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

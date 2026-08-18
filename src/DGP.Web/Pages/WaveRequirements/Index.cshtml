@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "Wave Requirements";
+}
+
+<div class="page-header">
+    <h3>Wave Requirements</h3>
+    <button class="btn btn-primary">New requirement</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Wave Req</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Target Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>WR-1102</td>
+                    <td>HN001</td>
+                    <td>10500</td>
+                    <td>2026-08-22</td>
+                    <td><span class="badge-status warning">Planned</span></td>
+                </tr>
+                <tr>
+                    <td>WR-1106</td>
+                    <td>HN002</td>
+                    <td>12300</td>
+                    <td>2026-08-23</td>
+                    <td><span class="badge-status success">Running</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

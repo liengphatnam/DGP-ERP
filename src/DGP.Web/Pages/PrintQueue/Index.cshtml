@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "Print Queue";
+}
+
+<div class="page-header">
+    <h3>Print Queue</h3>
+    <button class="btn btn-primary">Queue new print</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Queue ID</th>
+                    <th>Printer</th>
+                    <th>Job</th>
+                    <th>Qty</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Q-1001</td>
+                    <td>PR-001</td>
+                    <td>Label Batch A</td>
+                    <td>6,200</td>
+                    <td><span class="badge-status success">Ready</span></td>
+                </tr>
+                <tr>
+                    <td>Q-1002</td>
+                    <td>PR-003</td>
+                    <td>Carton Sleeve</td>
+                    <td>4,100</td>
+                    <td><span class="badge-status warning">Queued</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

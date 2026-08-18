@@ -1,0 +1,26 @@
+@page
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h3>Dashboard</h3>
+<p class="text-muted">Overview for production, inventory, and order flow.</p>
+
+<div class="row g-3 mt-2">
+    <div class="col-md-3"><div class="card-erp stat-card"><div class="stat-label">Open Orders</div><div class="stat-value">184</div></div></div>
+    <div class="col-md-3"><div class="card-erp stat-card"><div class="stat-label">Open Production</div><div class="stat-value">42</div></div></div>
+    <div class="col-md-3"><div class="card-erp stat-card"><div class="stat-label">Inventory</div><div class="stat-value">12,480</div></div></div>
+    <div class="col-md-3"><div class="card-erp stat-card"><div class="stat-label">Print Queue</div><div class="stat-value">18</div></div></div>
+</div>
+
+<div class="card-erp chart-panel mt-4">
+    <h5>Production trend</h5>
+    <div class="chart-bars">
+        <div class="bar-col"><span>Jan</span><div class="bar" style="height: 30%;"></div></div>
+        <div class="bar-col"><span>Feb</span><div class="bar orange" style="height: 42%;"></div></div>
+        <div class="bar-col"><span>Mar</span><div class="bar green" style="height: 60%;"></div></div>
+        <div class="bar-col"><span>Apr</span><div class="bar" style="height: 72%;"></div></div>
+        <div class="bar-col"><span>May</span><div class="bar orange" style="height: 81%;"></div></div>
+        <div class="bar-col"><span>Jun</span><div class="bar green" style="height: 90%;"></div></div>
+    </div>
+</div>

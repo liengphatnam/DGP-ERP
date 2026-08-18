@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "Catalog";
+}
+
+<div class="page-header">
+    <h3>Catalog</h3>
+    <button class="btn btn-primary">Create catalog</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Catalog</th>
+                    <th>Customer</th>
+                    <th>Box Spec</th>
+                    <th>Sheet Spec</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CAT-540</td>
+                    <td>Green Pack</td>
+                    <td>B-48</td>
+                    <td>S-28</td>
+                    <td><span class="badge-status success">Approved</span></td>
+                </tr>
+                <tr>
+                    <td>CAT-541</td>
+                    <td>North Vision</td>
+                    <td>B-51</td>
+                    <td>S-32</td>
+                    <td><span class="badge-status warning">Pending</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

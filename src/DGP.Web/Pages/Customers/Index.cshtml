@@ -1,0 +1,48 @@
+@page
+@{
+    ViewData["Title"] = "Customers";
+}
+
+<div class="page-header">
+    <h3>Customers</h3>
+    <a class="btn btn-primary" asp-page="/Customers/Create">New customer</a>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CUS-001</td>
+                    <td>Dona Green Pack</td>
+                    <td>+84 912 345 678</td>
+                    <td>sales@donagreenpack.com</td>
+                    <td><span class="badge-status success">Active</span></td>
+                </tr>
+                <tr>
+                    <td>CUS-002</td>
+                    <td>North Vision Export</td>
+                    <td>+84 901 451 223</td>
+                    <td>ops@northvision.com</td>
+                    <td><span class="badge-status success">Active</span></td>
+                </tr>
+                <tr>
+                    <td>CUS-003</td>
+                    <td>Metro Pack Supply</td>
+                    <td>+84 989 772 115</td>
+                    <td>sales@metropack.vn</td>
+                    <td><span class="badge-status warning">Review</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

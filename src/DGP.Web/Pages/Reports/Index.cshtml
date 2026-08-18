@@ -1,0 +1,35 @@
+@page
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="page-header">
+    <h3>Reports</h3>
+    <button class="btn btn-primary">Export</button>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card-erp chart-panel">
+            <h5>Production efficiency</h5>
+            <div class="chart-bars">
+                <div class="bar-col"><span>Mon</span><div class="bar" style="height: 48%;"></div></div>
+                <div class="bar-col"><span>Tue</span><div class="bar orange" style="height: 56%;"></div></div>
+                <div class="bar-col"><span>Wed</span><div class="bar green" style="height: 66%;"></div></div>
+                <div class="bar-col"><span>Thu</span><div class="bar" style="height: 58%;"></div></div>
+                <div class="bar-col"><span>Fri</span><div class="bar green" style="height: 75%;"></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card-erp table-card">
+            <h5 class="mb-3">Key KPIs</h5>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between"><span>On-time delivery</span><strong>96.4%</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>Waste rate</span><strong>2.8%</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>Inventory turn</span><strong>7.1x</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>Print yield</span><strong>98.2%</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>

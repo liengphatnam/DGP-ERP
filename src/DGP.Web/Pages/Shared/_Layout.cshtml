@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DGP ERP</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="erp-shell">
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="brand-wrap">
+                <div class="brand-icon">D</div>
+                <div>
+                    <div class="brand-name">DGP ERP</div>
+                    <small>Carton</small>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a class="nav-link active" asp-page="/Index">
+                    <span>📊</span> Dashboard
+                </a>
+                <div class="nav-section">Master Data</div>
+                <a class="nav-link" asp-page="/Customers/Index"><span>👥</span> Customers</a>
+                <a class="nav-link" asp-page="/Items/Index"><span>📦</span> Items</a>
+                <a class="nav-link" asp-page="/Catalog/Index"><span>🧾</span> Catalog</a>
+                <div class="nav-section">Operations</div>
+                <a class="nav-link" asp-page="/SalesOrders/Index"><span>🧾</span> Sales Orders</a>
+                <a class="nav-link" asp-page="/ProductionOrders/Index"><span>🏭</span> Production</a>
+                <a class="nav-link" asp-page="/WaveRequirements/Index"><span>🧭</span> Wave Requirements</a>
+                <a class="nav-link" asp-page="/WavePlans/Index"><span>🗓️</span> Wave Plans</a>
+                <a class="nav-link" asp-page="/Inventory/Index"><span>📦</span> Inventory</a>
+                <a class="nav-link" asp-page="/WIP/Index"><span>⚙️</span> WIP</a>
+                <a class="nav-link" asp-page="/PrintQueue/Index"><span>🖨️</span> Print Queue</a>
+                <div class="nav-section">Insights</div>
+                <a class="nav-link" asp-page="/Reports/Index"><span>📈</span> Reports</a>
+            </nav>
+        </aside>
+
+        <div class="main-panel">
+            <header class="topbar">
+                <div class="topbar-title">
+                    <h2>@ViewData["Title"]</h2>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn btn-light btn-sm">Today</button>
+                    <button class="btn btn-primary btn-sm">New Order</button>
+                </div>
+            </header>
+
+            <main class="content-area">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

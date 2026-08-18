@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "Wave Plans";
+}
+
+<div class="page-header">
+    <h3>Wave Plans</h3>
+    <button class="btn btn-primary">Plan wave</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Wave</th>
+                    <th>Machine</th>
+                    <th>Shift</th>
+                    <th>Target Qty</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>WP-220</td>
+                    <td>SONG_2500</td>
+                    <td>A</td>
+                    <td>9,500</td>
+                    <td><span class="badge-status success">Scheduled</span></td>
+                </tr>
+                <tr>
+                    <td>WP-221</td>
+                    <td>SONG_2500</td>
+                    <td>B</td>
+                    <td>11,200</td>
+                    <td><span class="badge-status warning">Queued</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

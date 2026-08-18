@@ -1,0 +1,41 @@
+@page
+@{
+    ViewData["Title"] = "WIP";
+}
+
+<div class="page-header">
+    <h3>Work in Progress</h3>
+    <button class="btn btn-primary">Update stage</button>
+</div>
+
+<div class="card-erp table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>WIP ID</th>
+                    <th>Item</th>
+                    <th>Stage</th>
+                    <th>Qty</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>WIP-403</td>
+                    <td>HN001</td>
+                    <td>Print</td>
+                    <td>1,800</td>
+                    <td><span class="badge-status success">Running</span></td>
+                </tr>
+                <tr>
+                    <td>WIP-404</td>
+                    <td>AS001</td>
+                    <td>Diecut</td>
+                    <td>2,200</td>
+                    <td><span class="badge-status warning">Queued</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
