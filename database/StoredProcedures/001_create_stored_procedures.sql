@@ -1284,3 +1284,552 @@ BEGIN
     SELECT SCOPE_IDENTITY() AS ReprintPrintID;
 END;
 GO
+
+IF OBJECT_ID(N'dbo.usp_ConfirmSalesOrder', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_ConfirmSalesOrder;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_ConfirmSalesOrder
+    @SalesOrderID BIGINT,
+    @ConfirmedBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @CurrentStatus NVARCHAR(30);
+
+    SELECT @CurrentStatus = Status
+    FROM dbo.SalesOrder
+    WHERE SalesOrderID = @SalesOrderID;
+
+    IF @CurrentStatus IS NULL
+        THROW 50100, 'Sales order not found.', 1;
+
+    IF @CurrentStatus = 'Cancelled'
+        THROW 50101, 'Cancelled order cannot be confirmed.', 1;
+
+    UPDATE dbo.SalesOrder
+    SET Status = 'Confirmed',
+        UpdatedAt = SYSDATETIME()
+    WHERE SalesOrderID = @SalesOrderID;
+
+    INSERT INTO dbo.SalesOrderAudit
+    (
+        SalesOrderID,
+        LineID,
+        ActionType,
+        OldValue,
+        NewValue,
+        Reason,
+        CreatedBy,
+        CreatedAt
+    )
+    VALUES
+    (
+        @SalesOrderID,
+        NULL,
+        'CONFIRM',
+        @CurrentStatus,
+        'Confirmed',
+        'Order confirmed',
+        @ConfirmedBy,
+        SYSDATETIME()
+    );
+
+    SELECT 1 AS Result;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_CreateSalesOrderRevision', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_CreateSalesOrderRevision;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_CreateSalesOrderRevision
+    @SalesOrderID BIGINT,
+    @Reason NVARCHAR(500) = NULL,
+    @CreatedBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @CurrentOrder TABLE
+    (
+        SalesOrderID BIGINT,
+        SalesOrderNo NVARCHAR(50),
+        CustomerID BIGINT,
+        OrderDate DATE,
+        RequiredDate DATE,
+        Status NVARCHAR(30),
+        VersionNo INT,
+        ParentSalesOrderID BIGINT,
+        IsCurrentVersion BIT,
+        Note NVARCHAR(MAX),
+        CreatedBy NVARCHAR(100)
+    );
+
+    INSERT INTO @CurrentOrder
+    SELECT
+        SalesOrderID,
+        SalesOrderNo,
+        CustomerID,
+        OrderDate,
+        RequiredDate,
+        Status,
+        VersionNo,
+        ParentSalesOrderID,
+        IsCurrentVersion,
+        Note,
+        CreatedBy
+    FROM dbo.SalesOrder
+    WHERE SalesOrderID = @SalesOrderID;
+
+    IF NOT EXISTS (SELECT 1 FROM @CurrentOrder)
+        THROW 50110, 'Sales order not found.', 1;
+
+    DECLARE @NewOrderID BIGINT;
+    DECLARE @NewVersionNo INT = (SELECT ISNULL(MAX(VersionNo), 0) + 1 FROM dbo.SalesOrder WHERE ParentSalesOrderID = @SalesOrderID OR SalesOrderID = @SalesOrderID);
+
+    INSERT INTO dbo.SalesOrder
+    (
+        SalesOrderNo,
+        CustomerID,
+        OrderDate,
+        RequiredDate,
+        Status,
+        VersionNo,
+        ParentSalesOrderID,
+        IsCurrentVersion,
+        Note,
+        CreatedBy,
+        CreatedAt
+    )
+    SELECT
+        CONCAT(SalesOrderNo, '-R', @NewVersionNo),
+        CustomerID,
+        OrderDate,
+        RequiredDate,
+        'Draft',
+        @NewVersionNo,
+        CASE WHEN ParentSalesOrderID IS NULL THEN SalesOrderID ELSE ParentSalesOrderID END,
+        1,
+        CONCAT('Revision: ', ISNULL(@Reason, 'No reason provided')),
+        @CreatedBy,
+        SYSDATETIME()
+    FROM @CurrentOrder;
+
+    SET @NewOrderID = SCOPE_IDENTITY();
+
+    UPDATE dbo.SalesOrder
+    SET IsCurrentVersion = 0
+    WHERE SalesOrderID = @SalesOrderID;
+
+    INSERT INTO dbo.SalesOrderLine
+    (
+        SalesOrderID,
+        ItemID,
+        ProductType,
+        Quantity,
+        Unit,
+        UnitPrice,
+        LineStatus,
+        CancelReason,
+        Note
+    )
+    SELECT
+        @NewOrderID,
+        ItemID,
+        ProductType,
+        Quantity,
+        Unit,
+        UnitPrice,
+        LineStatus,
+        CancelReason,
+        Note
+    FROM dbo.SalesOrderLine
+    WHERE SalesOrderID = @SalesOrderID;
+
+    INSERT INTO dbo.BoxSpec
+    (
+        LineID,
+        LengthMM,
+        WidthMM,
+        HeightMM,
+        FluteCode,
+        DieCutCode,
+        PrintColor,
+        PrintNote,
+        GlueType
+    )
+    SELECT
+        b.LineID,
+        b.LengthMM,
+        b.WidthMM,
+        b.HeightMM,
+        b.FluteCode,
+        b.DieCutCode,
+        b.PrintColor,
+        b.PrintNote,
+        b.GlueType
+    FROM dbo.BoxSpec b
+    INNER JOIN dbo.SalesOrderLine oldl ON oldl.LineID = b.LineID
+    WHERE oldl.SalesOrderID = @SalesOrderID;
+
+    INSERT INTO dbo.SalesOrderAudit
+    (
+        SalesOrderID,
+        LineID,
+        ActionType,
+        OldValue,
+        NewValue,
+        Reason,
+        CreatedBy,
+        CreatedAt
+    )
+    VALUES
+    (
+        @SalesOrderID,
+        NULL,
+        'CREATE_REVISION',
+        NULL,
+        CAST(@NewOrderID AS NVARCHAR(50)),
+        @Reason,
+        @CreatedBy,
+        SYSDATETIME()
+    );
+
+    SELECT @NewOrderID AS SalesOrderID;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_CancelSalesOrderLine', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_CancelSalesOrderLine;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_CancelSalesOrderLine
+    @LineID BIGINT,
+    @Reason NVARCHAR(500) = NULL,
+    @CancelledBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @CurrentStatus NVARCHAR(30);
+    DECLARE @SalesOrderID BIGINT;
+
+    SELECT
+        @CurrentStatus = sol.LineStatus,
+        @SalesOrderID = sol.SalesOrderID
+    FROM dbo.SalesOrderLine sol
+    WHERE sol.LineID = @LineID;
+
+    IF @CurrentStatus IS NULL
+        THROW 50120, 'Sales order line not found.', 1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.WaveRequirement wr
+        WHERE wr.SourceLineID = @LineID
+          AND wr.Status IN ('Planned', 'Running', 'Completed')
+    )
+        THROW 50121, 'Cancel blocked because the line already has a wave requirement in progress.', 1;
+
+    UPDATE dbo.SalesOrderLine
+    SET LineStatus = 'Cancelled',
+        CancelReason = @Reason
+    WHERE LineID = @LineID;
+
+    INSERT INTO dbo.SalesOrderAudit
+    (
+        SalesOrderID,
+        LineID,
+        ActionType,
+        OldValue,
+        NewValue,
+        Reason,
+        CreatedBy,
+        CreatedAt
+    )
+    VALUES
+    (
+        @SalesOrderID,
+        @LineID,
+        'CANCEL_LINE',
+        @CurrentStatus,
+        'Cancelled',
+        @Reason,
+        @CancelledBy,
+        SYSDATETIME()
+    );
+
+    SELECT 1 AS Result;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_InventoryApplyTransaction', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_InventoryApplyTransaction;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_InventoryApplyTransaction
+    @ItemID BIGINT,
+    @WarehouseID BIGINT,
+    @TransactionType NVARCHAR(50),
+    @Qty DECIMAL(18,2),
+    @Unit NVARCHAR(20) = 'PCS',
+    @RefType NVARCHAR(50) = NULL,
+    @RefID BIGINT = NULL,
+    @RefNo NVARCHAR(100) = NULL,
+    @Note NVARCHAR(MAX) = NULL,
+    @CreatedBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO dbo.InventoryTransaction
+    (
+        ItemID,
+        WarehouseID,
+        TransactionType,
+        Qty,
+        Unit,
+        RefType,
+        RefID,
+        RefNo,
+        Note,
+        CreatedBy,
+        CreatedAt
+    )
+    VALUES
+    (
+        @ItemID,
+        @WarehouseID,
+        @TransactionType,
+        @Qty,
+        @Unit,
+        @RefType,
+        @RefID,
+        @RefNo,
+        @Note,
+        @CreatedBy,
+        SYSDATETIME()
+    );
+
+    MERGE dbo.InventoryBalance AS target
+    USING (
+        SELECT @ItemID AS ItemID, @WarehouseID AS WarehouseID, NULL AS LotNo, NULL AS PalletNo, @Qty AS Qty
+    ) AS src
+    ON target.ItemID = src.ItemID
+   AND target.WarehouseID = src.WarehouseID
+   AND target.LotNo IS NULL
+   AND target.PalletNo IS NULL
+    WHEN MATCHED THEN
+        UPDATE SET QtyOnHand = QtyOnHand + src.Qty, UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (ItemID, WarehouseID, LotNo, PalletNo, QtyOnHand, ReservedQty, UpdatedAt)
+        VALUES (src.ItemID, src.WarehouseID, src.LotNo, src.PalletNo, src.Qty, 0, SYSDATETIME());
+
+    SELECT SCOPE_IDENTITY() AS TransID;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_UpdateInventoryBalance', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_UpdateInventoryBalance;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_UpdateInventoryBalance
+    @ItemID BIGINT,
+    @WarehouseID BIGINT,
+    @QtyDelta DECIMAL(18,2),
+    @LotNo NVARCHAR(100) = NULL,
+    @PalletNo NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    MERGE dbo.InventoryBalance AS target
+    USING (
+        SELECT @ItemID AS ItemID, @WarehouseID AS WarehouseID, @LotNo AS LotNo, @PalletNo AS PalletNo, @QtyDelta AS QtyDelta
+    ) AS src
+    ON target.ItemID = src.ItemID
+   AND target.WarehouseID = src.WarehouseID
+   AND ISNULL(target.LotNo, '') = ISNULL(src.LotNo, '')
+   AND ISNULL(target.PalletNo, '') = ISNULL(src.PalletNo, '')
+    WHEN MATCHED THEN
+        UPDATE SET QtyOnHand = QtyOnHand + src.QtyDelta, UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (ItemID, WarehouseID, LotNo, PalletNo, QtyOnHand, ReservedQty, UpdatedAt)
+        VALUES (src.ItemID, src.WarehouseID, src.LotNo, src.PalletNo, src.QtyDelta, 0, SYSDATETIME());
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_GetInventoryBalance', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_GetInventoryBalance;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_GetInventoryBalance
+    @ItemCode NVARCHAR(100) = NULL,
+    @WarehouseCode NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        ib.BalanceID,
+        ib.ItemID,
+        im.ItemCode,
+        im.ItemName,
+        im.ItemType,
+        ib.WarehouseID,
+        wh.WarehouseCode,
+        ib.LotNo,
+        ib.PalletNo,
+        ib.QtyOnHand,
+        ib.ReservedQty,
+        ib.AvailableQty,
+        im.Unit AS Unit
+    FROM dbo.InventoryBalance ib
+    INNER JOIN dbo.ItemMaster im ON im.ItemID = ib.ItemID
+    INNER JOIN dbo.Warehouse wh ON wh.WarehouseID = ib.WarehouseID
+    WHERE (@ItemCode IS NULL OR im.ItemCode = @ItemCode)
+      AND (@WarehouseCode IS NULL OR wh.WarehouseCode = @WarehouseCode)
+    ORDER BY im.ItemCode, wh.WarehouseCode;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_StartWIPStage', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_StartWIPStage;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_StartWIPStage
+    @ProductionOrderID BIGINT,
+    @StageID BIGINT,
+    @ItemID BIGINT,
+    @Qty DECIMAL(18,2),
+    @Note NVARCHAR(MAX) = NULL,
+    @CreatedBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO dbo.WIPTransaction
+    (
+        ProductionOrderID,
+        StageID,
+        ItemID,
+        WIPTransType,
+        Qty,
+        Unit,
+        RefType,
+        RefID,
+        Note,
+        CreatedBy,
+        CreatedAt
+    )
+    VALUES
+    (
+        @ProductionOrderID,
+        @StageID,
+        @ItemID,
+        'START_STAGE',
+        @Qty,
+        'PCS',
+        'PRODUCTION',
+        @ProductionOrderID,
+        @Note,
+        @CreatedBy,
+        SYSDATETIME()
+    );
+
+    MERGE dbo.WIPBalance AS target
+    USING (
+        SELECT @ProductionOrderID AS ProductionOrderID, @StageID AS StageID, @ItemID AS ItemID, @Qty AS Qty
+    ) AS src
+    ON target.ProductionOrderID = src.ProductionOrderID
+   AND target.StageID = src.StageID
+   AND target.ItemID = src.ItemID
+    WHEN MATCHED THEN
+        UPDATE SET QtyInStage = QtyInStage + src.Qty, UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (ProductionOrderID, StageID, ItemID, QtyInStage, UpdatedAt)
+        VALUES (src.ProductionOrderID, src.StageID, src.ItemID, src.Qty, SYSDATETIME());
+
+    SELECT SCOPE_IDENTITY() AS WIPTransID;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.usp_MoveWIPStage', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_MoveWIPStage;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_MoveWIPStage
+    @ProductionOrderID BIGINT,
+    @FromStageID BIGINT,
+    @ToStageID BIGINT,
+    @ItemID BIGINT,
+    @Qty DECIMAL(18,2),
+    @Note NVARCHAR(MAX) = NULL,
+    @CreatedBy NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.WIPBalance
+        WHERE ProductionOrderID = @ProductionOrderID
+          AND StageID = @FromStageID
+          AND ItemID = @ItemID
+          AND QtyInStage >= @Qty
+    )
+    BEGIN
+        UPDATE dbo.WIPBalance
+        SET QtyInStage = QtyInStage - @Qty,
+            UpdatedAt = SYSDATETIME()
+        WHERE ProductionOrderID = @ProductionOrderID
+          AND StageID = @FromStageID
+          AND ItemID = @ItemID;
+
+        INSERT INTO dbo.WIPTransaction
+        (
+            ProductionOrderID,
+            StageID,
+            ItemID,
+            WIPTransType,
+            Qty,
+            Unit,
+            FromStageID,
+            ToStageID,
+            RefType,
+            RefID,
+            Note,
+            CreatedBy,
+            CreatedAt
+        )
+        VALUES
+        (
+            @ProductionOrderID,
+            @ToStageID,
+            @ItemID,
+            'MOVE_STAGE',
+            @Qty,
+            'PCS',
+            @FromStageID,
+            @ToStageID,
+            'PRODUCTION',
+            @ProductionOrderID,
+            @Note,
+            @CreatedBy,
+            SYSDATETIME()
+        );
+
+        MERGE dbo.WIPBalance AS target
+        USING (
+            SELECT @ProductionOrderID AS ProductionOrderID, @ToStageID AS StageID, @ItemID AS ItemID, @Qty AS Qty
+        ) AS src
+        ON target.ProductionOrderID = src.ProductionOrderID
+       AND target.StageID = src.StageID
+       AND target.ItemID = src.ItemID
+        WHEN MATCHED THEN
+            UPDATE SET QtyInStage = QtyInStage + src.Qty, UpdatedAt = SYSDATETIME()
+        WHEN NOT MATCHED THEN
+            INSERT (ProductionOrderID, StageID, ItemID, QtyInStage, UpdatedAt)
+            VALUES (src.ProductionOrderID, src.StageID, src.ItemID, src.Qty, SYSDATETIME());
+
+        SELECT 1 AS Result;
+        RETURN;
+    END;
+
+    THROW 50130, 'Insufficient WIP quantity at source stage.', 1;
+END;
+GO
